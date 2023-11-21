@@ -1,0 +1,71 @@
+version: '3'
+
+services:
+  user-service:
+    container_name: user-service
+    image: ghcr.io/ietienam/user-service:main
+    restart: always
+    env_file: .env
+    expose:
+      - ${USER_SERVICE_PORT}
+    ports:
+      - ${USER_SERVICE_PORT}:${USER_SERVICE_PORT}
+    environment:
+      - USER_SERVICE_DATABASE=${USER_SERVICE_DATABASE}
+      - NODE_ENV=${NODE_ENV}
+      - USER_SERVICE_PORT=${USER_SERVICE_PORT}
+    networks:
+      - backend
+    command: npm run start
+    volumes:
+      - .:/user-service
+      - /user-service/node_modules
+  notification-service:
+    container_name: notification-service
+    image: ghcr.io/ietienam/notification-service:main
+    restart: always
+    env_file: .env
+    expose:
+      - ${NOTIFICATION_SERVICE_PORT}
+    ports:
+      - ${NOTIFICATION_SERVICE_PORT}:${NOTIFICATION_SERVICE_PORT}
+    environment:
+      - MAIL_HOST=${MAIL_HOST}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - API_GATEWAY_URL=${API_GATEWAY_URL}
+      - NOTIFICATION_SERVICE_PORT=${NOTIFICATION_SERVICE_PORT}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    networks:
+      - backend
+    command: npm run start
+    volumes:
+      - .:/notification-service
+      - /notification-service/node_modules
+  app:
+    container_name: app
+    build: .
+    depends_on:
+      - user-service
+    restart: always
+    env_file: .env
+    expose:
+      - ${API_GATEWAY_PORT}
+    ports:
+      - ${API_GATEWAY_PORT}:${API_GATEWAY_PORT}
+    environment:
+      - API_GATEWAY_PORT=${API_GATEWAY_PORT}
+    networks:
+      - backend
+    command: npm run start
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+volumes:
+  user-service:
+  notification-service:
+  app:
+networks:
+  backend:
+    driver: bridge    

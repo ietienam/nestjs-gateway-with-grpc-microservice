@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package user;
+
+import "google/protobuf/struct.proto";
+
+message ServiceResponse {
+    int32 statusCode = 1;
+    string message = 2;
+    google.protobuf.Struct data = 3;
+}
+  
+message RegisterUserRequest {
+    string firstName = 1;
+    string lastName = 2;
+    string email = 3;
+    string phone = 4;
+    string role = 5;
+    string password = 6;
+}
+  
+message RegisterUserResponse {
+    ServiceResponse data = 1;
+}
+
+service UserService {
+  rpc RegisterCustomer(RegisterUserRequest) returns (ServiceResponse);
+}

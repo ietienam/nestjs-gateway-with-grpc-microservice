@@ -1,0 +1,106 @@
+version: '3'
+
+services:
+  dev-database:
+    container_name: dev-database
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "root"
+      MONGO_INITDB_ROOT_PASSWORD: "password"
+      MONGO_INITDB_DATABASE: "gateway-test"
+    ports:
+      - 27018:27017
+    expose:
+      - 27018
+    volumes:
+      - dev-database:/data/db
+    restart: unless-stopped
+    networks:
+      - backend
+  dev-rabbitmq:
+    container_name: dev-rabbitmq
+    image: rabbitmq:latest
+    ports:
+      - 5672:5672
+      - 15672:15672
+    expose:
+      - 5672
+    environment:
+      RABBITMQ_DEFAULT_USER: "root"
+      RABBITMQ_DEFAULT_PASS: "password"
+    volumes:
+      - dev-rabbitmq:/data/rabbitmq
+    restart: unless-stopped
+  user-service:
+    container_name: user-service
+    image: ghcr.io/ietienam/user-service:main
+    restart: always
+    env_file: dev.env
+    expose:
+      - ${USER_SERVICE_PORT}
+    ports:
+      - ${USER_SERVICE_PORT}:${USER_SERVICE_PORT}
+    environment:
+      - USER_SERVICE_DATABASE='mongodb://root:password@dev-database:27017/gateway-test?authSource=admin'
+      - NODE_ENV=${NODE_ENV}
+      - USER_SERVICE_PORT=${USER_SERVICE_PORT}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    networks:
+      - backend
+    command: npm run start
+    volumes:
+      - .:/user-service
+      - /user-service/node_modules
+  notification-service:
+    container_name: notification-service
+    image: ghcr.io/ietienam/notification-service:main
+    restart: always
+    env_file: dev.env
+    expose:
+      - ${NOTIFICATION_SERVICE_PORT}
+    ports:
+      - ${NOTIFICATION_SERVICE_PORT}:${NOTIFICATION_SERVICE_PORT}
+    environment:
+      - MAIL_HOST=${MAIL_HOST}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - API_GATEWAY_URL=${API_GATEWAY_URL}
+      - NOTIFICATION_SERVICE_PORT=${NOTIFICATION_SERVICE_PORT}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    networks:
+      - backend
+    command: npm run start
+    volumes:
+      - .:/notification-service
+      - /notification-service/node_modules
+  app:
+    container_name: app
+    build: .
+    depends_on:
+      - dev-database
+      - dev-rabbitmq
+      - user-service
+    restart: always
+    env_file: dev.env
+    expose:
+      - ${API_GATEWAY_PORT}
+    ports:
+      - ${API_GATEWAY_PORT}:${API_GATEWAY_PORT}
+    environment:
+      - API_GATEWAY_PORT=${API_GATEWAY_PORT}
+    networks:
+      - backend
+    command: npm run start
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+volumes:
+  dev-database:
+  dev-rabbitmq:
+  user-service:
+  notification-service:
+  app:
+networks:
+  backend:
+    driver: bridge    
